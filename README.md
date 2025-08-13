@@ -37,7 +37,7 @@ The script will run two main simulations and a parameter sweep, printing progres
 
 ## Key Results
 - **`radial_profiles.png`** – Normalized radial density profiles for the "Dwarf Galaxy Analog" and "Massive Galaxy Analog," showing a low-density core in the dwarf analog and a dense cusp in the massive analog.  
-- **`krep_sweep.png`** – Maximum central curvature (`maxC`) as a function of repulsion strength (`Krep`). Illustrates a phase transition: high `Krep` leads to a stable core, low `Krep` produces a dynamic, unstable cusp.
+- **`krep_sweep.png`** – Maximum central curvature (`maxC`) as a function of repulsion strength (`Krep`). Illustrates a phase transition: low `Krep` leads to a stable core, high `Krep` produces a dynamic, unstable cusp.
 
 ---
 
