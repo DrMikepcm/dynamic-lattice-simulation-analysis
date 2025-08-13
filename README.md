@@ -25,11 +25,9 @@ pip install numpy matplotlib
 ---
 
 ## Running the Simulation
-Clone the repository and run the script:
+Run the script:
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
 python simulation.py
 ```
 
