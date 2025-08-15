@@ -1,47 +1,43 @@
-"""
-# 2D Static Lattice Simulation for Core–Cusp Formation
-
-This script runs a 2D particle-on-a-grid simulation to explore
-the formation of galaxy cores and cusps. It models particles 
-interacting with a static curvature field and a density-dependent 
-repulsive force.
-
-It includes:
-- Dwarf and massive galaxy analogs
-- Tracking of max central curvature over time
-- Plotting of maxC vs simulation steps
-
-Author: [Your Name]
-Repository: https://github.com/yourusername/galaxy-lattice
-"""
+# =============================================================================
+# Static 2D Lattice Simulation for Core–Cusp Formation (Cmax vs Repulsion Sweep)
+#
+# This script implements a static 2D particle-on-a-grid lattice model to study
+# galaxy core and cusp formation. Particles interact with a fixed curvature
+# field and a density-dependent repulsive force. The simulation sweeps the
+# repulsion strength parameter (Krep) to evaluate its effect on the maximum
+# central curvature (Cmax), illustrating the absence of a sweet spot in the
+# static lattice.
+#
+# Features:
+# - Core parameters for 2D lattice
+# - Cloud-in-Cell deposition of particles
+# - Bilinear interpolation of curvature gradients
+# - Local density-dependent repulsive acceleration
+# - Sweep of Krep and plotting of Cmax vs Krep
+#
+# Outputs:
+# - Plot of maximum central curvature as a function of repulsion strength
+# =============================================================================
 
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 
 # --- Simulation parameters ---
-N = 128
-NP_dwarf = 2000
-NP_massive = 20000
-DT = 0.05
-STEPS = 1000
-Krep_dwarf = 1.0
-v_th_dwarf = 0.1
-Krep_massive = 0.2
-v_th_massive = 0.05
-PRINT_EVERY = 50
+N = 128          # Grid size
+NP = 2000        # Number of particles
+DT = 0.05        # Time step
+STEPS = 1000     # Simulation steps
+v_th = 0.1       # Thermal velocity
+PRINT_EVERY = 200
 s_src = 2.5
 lam = 0.005
 D_C = 0.08
 mu = 2.0
 r_rep = 3
 
-OUT_DIR = "static_2d_output"
-os.makedirs(OUT_DIR, exist_ok=True)
-
 # --- Helper functions ---
 def laplacian(F):
-    return (np.roll(F,1,0)+np.roll(F,-1,0)+np.roll(F,1,1)+np.roll(F,-1,1)-4*F)
+    return np.roll(F,1,0)+np.roll(F,-1,0)+np.roll(F,1,1)+np.roll(F,-1,1)-4*F
 
 def cic_deposit(xp, yp):
     rho = np.zeros((N,N))
@@ -89,19 +85,22 @@ def repulsion_accel(xp, yp, Krep, r=r_rep):
         dx = (xp[i] - xp + N/2) % N - N/2
         dy = (yp[i] - yp + N/2) % N - N/2
         dist2 = dx**2 + dy**2
-        mask = (dist2 > 0) & (dist2 <= r2)
-        ax[i] += Krep * np.sum(dx[mask]/np.sqrt(dist2[mask]) * rho_local[mask])
-        ay[i] += Krep * np.sum(dy[mask]/np.sqrt(dist2[mask]) * rho_local[mask])
+        mask = (dist2>0) & (dist2 <= r2)
+        ax[i] += Krep*np.sum(dx[mask]/np.sqrt(dist2[mask])*rho_local[mask])
+        ay[i] += Krep*np.sum(dy[mask]/np.sqrt(dist2[mask])*rho_local[mask])
     return ax, ay
 
-# --- Simulation runner ---
-def run_sim(NP_val, Krep, v_th, seed=12345):
-    rng = np.random.default_rng(seed)
-    xp = rng.normal(N/2, 10, NP_val) % N
-    yp = rng.normal(N/2, 10, NP_val) % N
-    vx, vy = np.zeros(NP_val), np.zeros(NP_val)
+# --- Sweep simulation ---
+def run_sweep(Krep):
+    rng = np.random.default_rng(12345)
+    cx, cy = N/2, N/2
+    sigma = 10
+    xp = rng.normal(cx, sigma, NP) % N
+    yp = rng.normal(cy, sigma, NP) % N
+    vx = np.zeros(NP)
+    vy = np.zeros(NP)
     C = np.zeros((N,N))
-    maxC_history = []
+    max_C_history = []
 
     for step in range(1, STEPS+1):
         rho = cic_deposit(xp, yp)
@@ -110,38 +109,31 @@ def run_sim(NP_val, Krep, v_th, seed=12345):
         ax_curv = mu * bilinear_sample(Cx, xp, yp)
         ay_curv = mu * bilinear_sample(Cy, xp, yp)
         ax_rep, ay_rep = repulsion_accel(xp, yp, Krep)
-        ax_therm = rng.normal(0, v_th, NP_val)
-        ay_therm = rng.normal(0, v_th, NP_val)
-        vx += (ax_curv + ax_rep + ax_therm) * DT
-        vy += (ay_curv + ay_rep + ay_therm) * DT
+        ax_therm = rng.normal(0, v_th, NP)
+        ay_therm = rng.normal(0, v_th, NP)
+        vx += (ax_curv + ax_rep + ax_therm)*DT
+        vy += (ay_curv + ay_rep + ay_therm)*DT
         xp = (xp + vx*DT) % N
         yp = (yp + vy*DT) % N
-        maxC_history.append(C[N//2,N//2])
-        if step % PRINT_EVERY == 0:
-            print(f"Step {step}/{STEPS}: max central curvature = {maxC_history[-1]:.4f}")
-
-    return xp, yp, np.array(maxC_history)
+        max_C_history.append(C[N//2,N//2])
+    return np.max(max_C_history)
 
 # --- Main execution ---
 if __name__=="__main__":
-    xp_d, yp_d, maxC_d = run_sim(NP_dwarf, Krep_dwarf, v_th_dwarf)
-    xp_m, yp_m, maxC_m = run_sim(NP_massive, Krep_massive, v_th_massive)
+    Krep_values = np.linspace(0.01, 2.0, 20)
+    maxC_values = []
 
-    # Save data
-    np.save(os.path.join(OUT_DIR,"positions_dwarf.npy"), np.vstack([xp_d, yp_d]))
-    np.save(os.path.join(OUT_DIR,"maxC_dwarf.npy"), maxC_d)
-    np.save(os.path.join(OUT_DIR,"positions_massive.npy"), np.vstack([xp_m, yp_m]))
-    np.save(os.path.join(OUT_DIR,"maxC_massive.npy"), maxC_m)
+    for Krep in Krep_values:
+        print(f"Running static simulation with Krep={Krep:.3f}")
+        maxC_values.append(run_sweep(Krep))
 
-    # Plot max central curvature
+    # Plot Cmax vs Krep
     plt.figure(figsize=(10,6))
-    plt.plot(np.arange(1, STEPS+1), maxC_d, label="Dwarf Analog", color='blue')
-    plt.plot(np.arange(1, STEPS+1), maxC_m, label="Massive Analog", color='red')
-    plt.xlabel("Time step")
-    plt.ylabel("Max Central Curvature")
-    plt.title("Max Central Curvature over Time (2D Static Lattice)")
-    plt.legend()
+    plt.plot(Krep_values, maxC_values, marker='o', linestyle='-', color='purple')
+    plt.xlabel("Krep (Repulsion Strength)")
+    plt.ylabel("Max Central Curvature (Cmax)")
+    plt.title("Static Lattice: Max Central Curvature vs Repulsion")
     plt.grid(True)
-    plt.savefig(os.path.join(OUT_DIR,"maxC_vs_step.png"))
+    plt.savefig("static_cmax_vs_krep.png")
     plt.show()
-    print(f"Plot saved to '{OUT_DIR}/maxC_vs_step.png'")
+    print("Cmax vs Krep plot saved as 'static_cmax_vs_krep.png'")
