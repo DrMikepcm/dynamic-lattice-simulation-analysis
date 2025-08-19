@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# quick_3d_sweep_with_thresholds.py
+# quick_3d_sweep_with_horizontal_thresholds.py
 # ------------------------------------------------------------
 # 3D Cusp–Core Sweep for Dwarf & Massive Analogs
 # ------------------------------------------------------------
@@ -9,17 +9,14 @@
 # - Sweeps over Krep (repulsion) and D_C (diffusion coefficient)
 # - Computes MaxC (proxy for central curvature/density) vs Krep
 # - Computes radial density profiles and inner/outer log-log slopes
-# - Automatically detects core vs cusp transitions using slope differences
-# - Saves MaxC tables, slope diagnostics, and thresholds
-# - Generates publication-ready figure with all 6 curves + horizontal threshold lines
+# - Determines slope-based horizontal threshold lines for MaxC
+# - Saves MaxC tables and generates publication-ready figure
 #
 # Requirements:
 #   numpy, matplotlib, os
 #
 # Output:
 #   - quick_sweep_output/<gal>_DC_<D_C>.txt  (MaxC tables)
-#   - quick_sweep_output/slopes_<gal>_DC_<D_C>.txt (slope diagnostics)
-#   - quick_sweep_output/thresholds_by_slope.txt
 #   - quick_sweep_output/quick_sweep_summary_with_thresholds.png
 # ------------------------------------------------------------
 
@@ -149,18 +146,14 @@ def fit_loglog_slope(r, rho, rmin, rmax):
     y = np.log(rho[mask])
     return np.polyfit(x, y, 1)[0]
 
-def classify_core_by_slopes(r, rho, delta_alpha_cut=0.3):
-    R = N/2.0
-    alpha_in  = fit_loglog_slope(r, rho, rmin=1.0,        rmax=0.25*R)
-    alpha_out = fit_loglog_slope(r, rho, rmin=0.35*R,     rmax=0.60*R)
-    if np.isnan(alpha_in) or np.isnan(alpha_out):
-        return alpha_in, alpha_out, False
-    delta = abs(alpha_out) - abs(alpha_in)
-    return alpha_in, alpha_out, (delta >= delta_alpha_cut)
+def compute_threshold(r, rho, delta_alpha_cut=0.3):
+    a_in  = fit_loglog_slope(r, rho, rmin=1.0, rmax=0.25*N/2)
+    a_out = fit_loglog_slope(r, rho, rmin=0.35*N/2, rmax=0.60*N/2)
+    if np.isnan(a_in) or np.isnan(a_out):
+        return np.nan
+    delta = abs(a_out) - abs(a_in)
+    return np.nan if delta < delta_alpha_cut else np.max(rho)
 
-# ----------------------------
-# Core simulation routine
-# ----------------------------
 def run_one_run(NP_val, Krep_base, v_th_base, D_C_choice, seed=rng_seed):
     rng = np.random.default_rng(seed)
     xp = rng.normal(N/2, 5, NP_val) + rng.normal(0, 2, NP_val)
@@ -173,7 +166,7 @@ def run_one_run(NP_val, Krep_base, v_th_base, D_C_choice, seed=rng_seed):
     for step in range(STEPS):
         Krep_step = Krep_base * ((step+1)/STEPS)**alpha
         D_C_step  = D_C_choice * (step/100) if step < 100 else D_C_choice
-        v_th_dynamic = v_th_base * (1 + vth_A * np.exp(-step/vth_tau))
+        v_th_dynamic = v_th_base * (1 + 5*np.exp(-step/50))
 
         rho = cic_deposit(xp, yp, zp)
         C += DT*(s_src*rho - lam*C + D_C_step*laplacian(C))
@@ -209,11 +202,10 @@ def run_one_run(NP_val, Krep_base, v_th_base, D_C_choice, seed=rng_seed):
     return np.max(maxC_history), r_mid, rho_shell
 
 # ----------------------------
-# Run sweeps, save data, compute thresholds
+# Run sweeps
 # ----------------------------
 results = {}
 thresholds = {}
-slope_tables = {}
 
 for D_C_choice in D_C_values:
     print(f"\n=== Running sweep for D_C = {D_C_choice:.4f} ===")
@@ -221,20 +213,17 @@ for D_C_choice in D_C_values:
                              ("massive", NP_massive, v_th_massive)]:
 
         maxC_list = []
-        all_slopes = []
-        core_found = False
         Krep_threshold = np.nan
 
         for k in Krep_values:
-            Cmax, r_mid, rho_shell = run_one_run(NP_val, k, vth, D_C_choice, seed=rng_seed)
+            Cmax, r_mid, rho_shell = run_one_run(NP_val, k, vth, D_C_choice)
             maxC_list.append(Cmax)
-            a_in, a_out, is_core = classify_core_by_slopes(r_mid, rho_shell, delta_alpha_cut=0.3)
-            all_slopes.append((k, a_in, a_out, is_core))
-            print(f"{gal:7s} D_C={D_C_choice:.3f} Krep={k:.3f}  MaxC={Cmax:.4f}  alpha_in={a_in:.3f} alpha_out={a_out:.3f} core={is_core}")
 
-            if (not core_found) and is_core:
-                Krep_threshold = k
-                core_found = True
+            thr = compute_threshold(r_mid, rho_shell)
+            if np.isnan(Krep_threshold) and not np.isnan(thr):
+                Krep_threshold = thr
+
+            print(f"{gal:7s} D_C={D_C_choice:.3f} Krep={k:.3f}  MaxC={Cmax:.4f}")
 
         maxC_arr = np.array(maxC_list)
         fname = os.path.join(OUT_DIR, f"{gal}_DC_{D_C_choice:.3f}.txt")
@@ -244,7 +233,6 @@ for D_C_choice in D_C_values:
 
         results[(gal, D_C_choice)] = {"Krep": Krep_values, "MaxC": maxC_arr}
         thresholds[(gal, D_C_choice)] = Krep_threshold
-        slope_tables[(gal, D_C_choice)] = np.array(all_slopes, dtype=float)
 
 # ----------------------------
 # Plot all curves + horizontal thresholds
@@ -261,39 +249,19 @@ for gal in ["dwarf", "massive"]:
                  linestyles[gal], marker='o', color=color_map[gal],
                  alpha=0.9, label=label)
 
-        kthr = thresholds[(gal, D_C_choice)]
-        if not np.isnan(kthr):
-            plt.axhline(kthr, color=color_map[gal], linestyle=":", alpha=0.5,
-                        label=f"{gal.capitalize()} threshold Δ|α|≥0.3")
+    # Plot horizontal threshold
+    thr_val = thresholds[(gal, D_C_choice_values[0])]  # use first D_C as representative
+    if not np.isnan(thr_val):
+        plt.axhline(thr_val, color=color_map[gal], linestyle=":", alpha=0.7,
+                    label=f"Threshold ({gal.capitalize()})")
 
 plt.xlabel("Krep (Repulsion)")
 plt.ylabel("MaxC (Max Central Curvature/Density)")
-plt.title("Effect of Repulsion and Curvature Diffusion on Central Density in 3D Lattice Simulations")
+plt.title("3D Lattice Sweep: Dwarf vs Massive Analogs")
 plt.grid(True, alpha=0.3)
 plt.legend(ncol=2)
 plt.tight_layout()
-figfile = os.path.join(OUT_DIR, "quick_sweep_summary_with_thresholds.png")
+figfile = os.path.join(OUT_DIR, "quick_sweep_summary_with_horizontal_thresholds.png")
 plt.savefig(figfile, dpi=300)
 plt.show()
 print(f"\nSaved summary figure: {figfile}")
-
-# ----------------------------
-# Save thresholds to disk
-# ----------------------------
-thr_file = os.path.join(OUT_DIR, "thresholds_by_slope.txt")
-with open(thr_file, "w") as f:
-    f.write("galaxy,DC,Krep_threshold(Δ|α|≥0.3)\n")
-    for gal in ["dwarf", "massive"]:
-        for D_C_choice in D_C_values:
-            kthr = thresholds[(gal, D_C_choice)]
-            f.write(f"{gal},{D_C_choice:.3f},{'' if np.isnan(kthr) else f'{kthr:.3f}'}\n")
-print("Saved thresholds:", thr_file)
-
-# ----------------------------
-# Optional: Save slope diagnostics
-# ----------------------------
-for gal in ["dwarf", "massive"]:
-    for D_C_choice in D_C_values:
-        arr = slope_tables[(gal, D_C_choice)]
-        fn = os.path.join(OUT_DIR, f"slopes_{gal}_DC_{D_C_choice:.3f}.txt")
-        np.savetxt(fn, arr, header="Krep alpha_in alpha_out is_core(0/1)", fmt="%.6f")
