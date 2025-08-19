@@ -11,7 +11,7 @@
 # - Computes radial density profiles and inner/outer log-log slopes
 # - Automatically detects core vs cusp transitions using slope differences
 # - Saves MaxC tables, slope diagnostics, and thresholds
-# - Generates publication-ready figure with all 6 curves + threshold lines
+# - Generates publication-ready figure with all 6 curves + horizontal threshold lines
 #
 # Requirements:
 #   numpy, matplotlib, os
@@ -247,7 +247,7 @@ for D_C_choice in D_C_values:
         slope_tables[(gal, D_C_choice)] = np.array(all_slopes, dtype=float)
 
 # ----------------------------
-# Plot all curves + thresholds
+# Plot all curves + horizontal thresholds
 # ----------------------------
 plt.figure(figsize=(10,6))
 color_map = {"dwarf": "tab:blue", "massive": "tab:red"}
@@ -263,11 +263,12 @@ for gal in ["dwarf", "massive"]:
 
         kthr = thresholds[(gal, D_C_choice)]
         if not np.isnan(kthr):
-            plt.axvline(kthr, color=color_map[gal], linestyle=":", alpha=0.5)
+            plt.axhline(kthr, color=color_map[gal], linestyle=":", alpha=0.5,
+                        label=f"{gal.capitalize()} threshold Δ|α|≥0.3")
 
 plt.xlabel("Krep (Repulsion)")
 plt.ylabel("MaxC (Max Central Curvature/Density)")
-plt.title("3D Lattice Sweep: Dwarf versus Massive Analog and Krep (Repulsion)")
+plt.title("Effect of Repulsion and Curvature Diffusion on Central Density in 3D Lattice Simulations")
 plt.grid(True, alpha=0.3)
 plt.legend(ncol=2)
 plt.tight_layout()
