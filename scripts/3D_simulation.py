@@ -250,13 +250,13 @@ for gal in ["dwarf", "massive"]:
                  alpha=0.9, label=label)
 
     # Plot horizontal threshold
-    thr_val = thresholds[(gal, D_C_choice_values[0])]  # use first D_C as representative
+    thr_val = thresholds[(gal, D_C_values[0])]  # use first D_C as representative
     if not np.isnan(thr_val):
         plt.axhline(thr_val, color=color_map[gal], linestyle=":", alpha=0.7,
                     label=f"Threshold ({gal.capitalize()})")
 
 plt.xlabel("Krep (Repulsion)")
-plt.ylabel("MaxC (Max Central Curvature/Density)")
+plt.ylabel("MaxC (Max Central Curvature / Density)")
 plt.title("3D Lattice Sweep: Dwarf vs Massive Analogs")
 plt.grid(True, alpha=0.3)
 plt.legend(ncol=2)
