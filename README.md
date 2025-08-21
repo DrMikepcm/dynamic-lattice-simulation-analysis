@@ -3,9 +3,9 @@
 ## Project Description
 This repository contains the Python simulation code used for the research note, "A Geometric Lattice Model for the Cusp-Core Problem," published in the AAS Research Notes.
 
-The script, `simulation.py`, implements a phenomenological model to explore the formation of galactic cores and cusps. It models the gravitational influence of a central mass using a dynamic curvature field and introduces a density-dependent repulsive force to simulate stellar feedback.
+A phenomenological lattice model is implemented to explore the formation of galactic cores and cusps. Particles interact with a dynamic curvature field, and a density-dependent repulsive force simulates stellar feedback. The repository includes 2D lattice simulations, 3D lattice simulations, and static lattice control runs (no curvature feedback). Supporting modules and notebooks allow interactive exploration.
 
-**Core finding:** The repulsion strength (`Krep`) determines whether a stable, low-density core (analogous to a dwarf galaxy) or a dynamic, high-density cusp (analogous to a massive galaxy) forms.
+**Core finding:** The repulsion strength (`Krep`) determines whether a stable, low-density core (analogous to a dwarf galaxy) or a dynamic, high-density cusp (analogous to a massive galaxy) forms. Static lattice runs confirm that two-way curvature–density interaction is essential for core formation.
 
 ---
 
@@ -16,45 +16,60 @@ The script, `simulation.py`, implements a phenomenological model to explore the 
 - numpy  
 - matplotlib  
 
-Install the required libraries using pip:
+Install required libraries:
 
 ```bash
 pip install numpy matplotlib
 ```
+# Running the Simulations:
 
----
-
-## Running the Simulation
-Run the script:
-
+# 2D Simulation
 ```bash
-python simulation.py
+python scripts/2D_simulation.py
 ```
-
-The script will run two main simulations and a parameter sweep, printing progress updates to the console. It will save two plots, `radial_profiles.png` and `krep_sweep.png`, to the same directory.
-
+# 3D Simulation
+```bash
+python scripts/3D_simulation.py
+```
+# Static Lattice Simulation
+```bash
+python scripts/static_lattice_sim.py
+```
 ---
+
+# Geometric Lattice Model – README
+
+## Outputs
+All results are saved in the `results/` folder, including plots and CSV data.
 
 ## Key Results
-- **`radial_profiles.png`** – Normalized radial density profiles for the "Dwarf Galaxy Analog" and "Massive Galaxy Analog," showing a low-density core in the dwarf analog and a dense cusp in the massive analog.  
-- **`krep_sweep.png`** – Maximum central curvature (`maxC`) as a function of repulsion strength (`Krep`). Illustrates a phase transition: low `Krep` leads to a stable core, high `Krep` produces a dynamic, unstable cusp.
+- 2D and 3D sweeps show the lattice phase transition: low `Krep` → cores; high `Krep` → cusps
+- Radial profiles confirm low-density cores in dwarf analogs and high-density cusps in massive analogs
+- Static lattice runs highlight the necessity of curvature–density feedback for core formation
 
----
+## Code and Notebooks Details
 
-## Code Structure
-All code is in `simulation.py`:
+### Code Organization
+All simulation scripts are in the `scripts/` folder:
+- `2D_simulation.py` – 2D lattice simulations and parameter sweeps
+- `3D_simulation.py` – 3D lattice simulations and parameter sweeps
+- `static_lattice_sim.py` – Static lattice control runs
 
-- **Helper Functions** – Grid operations, particle deposition, interpolation.  
-- **`run_main_sim`** – Runs the full simulation for radial density profiles.  
-- **`run_sweep_sim`** – Runs the parameter sweep, returning maximum central curvature.  
-- **Main Execution Block (`if __name__ == "__main__":`)** – Orchestrates simulations and generates plots.
+Supporting routines and notebooks:
+- `3d.py`, `matrix_simulation.py`, `matrix_simulation2_0.py` – Core lattice computation routines
+- `notebooks/` – Optional Jupyter notebooks for interactive visualization
 
----
+### Results Folder
+- `results/2D_krep_sweep.png` and `2D_krep_sweep_data_.csv` – 2D sweep results
+- `results/3D_krep_sweep.png` and `3d_krep_sweep_data.csv` – 3D sweep results
+- `results/radial_profiles.png` – Normalized radial density profiles
+
+### Notebooks
+Notebooks allow exploration of particle dynamics, curvature fields, and radial density profiles.
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
+MIT License. See the [LICENSE](LICENSE) file.
 
 ## Contact
-For questions or feedback, please open an issue or contact [Dr Mike](mailto:mjay10016@gmail.com).
+For questions or feedback, please open an issue or contact [Dr Mike](mailto:mjay10016@gmail.com)
+
